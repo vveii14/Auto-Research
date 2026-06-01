@@ -212,6 +212,55 @@ On the top predicted directions, **actually run auto-research once** as qualitat
 
 ---
 
+## 12. Full-Scale Deployment Spec / 全量部署配置
+
+The pilot validated the idea on **886 abstracts** (see §13). Moving from pilot to the full system requires the upgrades below. *〔Pilot 在 886 篇摘要上验证了 idea;全量需如下升级。最关键三条已标 ★。〕*
+
+**A. Corpus / 语料**
+- Scope is a parameter: full brain (~8k, already fetched) → all medical imaging (~50–100k) via the venue/year knob.
+- **★ Read FULL TEXT, not just abstracts.** Pilot found task→task transfer edges are only ~8% of edges because transfer statements (pretraining, multi-task, domain adaptation) live in the methods/experiments sections, not abstracts. Full-text extraction is the single biggest lever for the who-helps-whom signal. *〔读全文是把核心卖点 task→task 做厚的关键。〕*
+- Extend years to 2010–2024 (more T0 points → tighter CIs); pull citation/follow-up counts for value-weighting.
+
+**B. Models / 模型**
+- **Extraction: local open-weight (Qwen-72B class), temp-free, deterministic post-check.** Reason: full-text × tens of thousands × repeated re-runs is prohibitive on API; local gives reproducibility and is required for the time-frozen leakage control.
+- Embeddings: **SPECTER2** (scientific-paper-tuned) replacing the pilot's MiniLM.
+- Optional: a review-trained critic (à la Deep Ideation) for value scoring.
+
+**C. Infrastructure / 基础设施**
+- **Neo4j** (property graph + vector index) replacing pilot JSON; FAISS/HNSW for ANN; GraphRAG-style community layering for global queries; incremental indexing.
+
+**D. Module settings / 模块配置**
+- Extraction: full-text + a transfer-targeted prompt (explicitly mine pretraining / transfer / multi-task / domain-adaptation statements).
+- Entity resolution: SPECTER2 + tuned threshold + LLM-assisted canonicalization for hard cases.
+- Transitive inference: bounded path length, **exclude method→method pivots** (pilot's inflation source), confidence decay along paths.
+- Navigation: tune τ_rich / τ_hole on a validation slice; interestingness filter; optional budgeted MCTS/beam.
+- Governance: **turn ON** at scale (dedup / conflict-resolution / decay / deprecate).
+- Continuous ingest: monthly arXiv pull, incremental.
+
+**E. Full evaluation (the publishable run) / 正式实验**
+- **★ Many T0 (2014–2020)** → enough points to push the growing−frozen CI off zero (the pilot's open question).
+- precision@k **+ recall@k**, citation-value-weighted, bootstrap CIs, paired tests.
+- Full controls: random-growth (size confound), time-frozen LLM (leakage), mechanism ablations, V-A edge quality vs a measured-transfer matrix.
+- Multi-domain generality: brain → retina → cardiac → all medical imaging.
+
+**F. Live system (P7) / 活体系统**
+- Plug a real auto-research / AI-scientist backend into fold-back; run it on the top-k predicted directions as a qualitative deployability demo (the compounding curve does not depend on it).
+
+**The three that matter most / 最关键三条:** ① full-text + transfer-targeted extraction (thickens task→task); ② multi-T0 + full controls (resolves whether compounding is significant); ③ local 72B + Neo4j + governance-on (scale, reproducibility, cleanliness).
+
+---
+
+## 13. Pilot Results (886-paper brain subsample) / 试点结果
+
+A cheap end-to-end dress rehearsal on 886 brain-imaging abstracts (≤2020 build + 100/yr 2021–24), Opus extraction, ~$70.
+
+- **Graph:** 2,907 nodes / 1,748 edges after entity resolution; edge mix method→task 1,581 vs **task→task 131 (~8%)** — who-helps-whom signal real but thin from abstracts alone (→ motivates full-text extraction).
+- **Navigation (semantic precision@k, bootstrap 95% CI, pooled over 4 T0 × years):** P@10 — **growing .127 / frozen .091 / co-occurrence .027 / no-graph-LLM .023 / random .000.**
+- **Significant (CI excludes 0):** graph navigation > no-graph-LLM (+.105 [.041,.164] @k10), > co-occurrence, >> random. This already supports "**structure-driven task-transfer navigation beats LLM-alone and co-occurrence**," and doubles as leakage control (LLM-alone is weak → the gain is the graph, not memorized future).
+- **Not yet significant:** compounding (growing − frozen = +.036 [−.050,+.123] @k10) — point estimate favors growing at every k & T0, but CI spans 0 at 900-paper scale. Resolving this is the goal of the full-scale multi-T0 run.
+
+---
+
 ## 11. References / 文献
 
 *(All arXiv IDs verified 2026-05.)*
