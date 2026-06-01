@@ -1,0 +1,15 @@
+# secrets — never commit
+secrets.env
+*.key
+
+# data & artifacts
+data/
+runs/
+*.jsonl
+
+# python
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
