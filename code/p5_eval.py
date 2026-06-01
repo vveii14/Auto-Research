@@ -59,20 +59,30 @@ def cooccur_pred(nodes, kmax, y):
     return [(a, b) for _, a, b in scores[:kmax]]
 
 
+import re as _re
+
+
 def nograph_llm_pred(nodes, kmax, y):
     names = [nodes[i]["text"] for i in nodes]
     random.shuffle(names)
     sample = names[:120]
+    n_ask = min(kmax, 50)
     sys_p = "You are a brain medical-imaging research strategist."
     usr = (f"Given research tasks/methods known up to {y}:\n- " + "\n- ".join(sample) +
-           f"\n\nPropose the {kmax} most promising NOT-YET-TRIED transfer directions for {y+1} "
+           f"\n\nPropose the {n_ask} most promising NOT-YET-TRIED transfer directions for {y+1} "
            "(form: source --> target task). Output STRICT JSON: "
            '{"directions":[{"src":"...","dst":"..."}]}')
+    txt = ""
     try:
-        out = llm.extract_json(llm.call(sys_p, usr, max_tokens=4000))
+        txt = llm.call(sys_p, usr, max_tokens=4000)
+        out = llm.extract_json(txt)
         return [(d["src"], d["dst"]) for d in out.get("directions", [])][:kmax]
-    except Exception as e:
-        print("  nograph_llm failed:", e); return []
+    except Exception:
+        # robust fallback: regex out every {"src":..,"dst":..} pair
+        pairs = _re.findall(r'"src"\s*:\s*"([^"]+)"\s*,\s*"dst"\s*:\s*"([^"]+)"', txt)
+        if pairs:
+            return pairs[:kmax]
+        print("  nograph_llm parse failed (no pairs)"); return []
 
 
 def to_embs(pred, text=False):
