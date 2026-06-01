@@ -1,38 +1,33 @@
 #!/usr/bin/env python3
-"""Assemble the complete pilot findings PDF (Chinese text + English figures)."""
-import pathlib
+"""Assemble the complete pilot findings PDF in academic English."""
+import pathlib, os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Image,
                                 Table, TableStyle, PageBreak)
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIG = ROOT / "data" / "figs"
 OUT = ROOT / "Pilot_Findings_and_Outlook.pdf"
 
-F = "STSong-Light"
-pdfmetrics.registerFont(UnicodeCIDFont(F))
-pdfmetrics.registerFontFamily(F, normal=F, bold=F, italic=F, boldItalic=F)
-
+SERIF, SANS = "Times-Roman", "Helvetica-Bold"
 def style(name, **kw):
-    base = dict(fontName=F, fontSize=10.5, leading=16, spaceAfter=6)
+    base = dict(fontName=SERIF, fontSize=10.5, leading=15, spaceAfter=6)
     base.update(kw); return ParagraphStyle(name, **base)
-H1 = style("H1", fontSize=16, leading=20, textColor=colors.HexColor("#0b3d91"), spaceBefore=10, spaceAfter=8)
-H2 = style("H2", fontSize=12.5, leading=16, textColor=colors.HexColor("#1f6feb"), spaceBefore=8, spaceAfter=5)
-BODY = style("BODY")
+H1 = style("H1", fontName=SANS, fontSize=15, leading=19, textColor=colors.HexColor("#0b3d91"), spaceBefore=10, spaceAfter=7)
+H2 = style("H2", fontName=SANS, fontSize=11.5, leading=15, textColor=colors.HexColor("#1f6feb"), spaceBefore=8, spaceAfter=4)
+BODY = style("BODY", alignment=4)
 BULLET = style("BULLET", leftIndent=14, spaceAfter=3)
 SMALL = style("SMALL", fontSize=8.5, leading=11, textColor=colors.HexColor("#57606a"))
-TITLE = style("TITLE", fontSize=22, leading=27, textColor=colors.HexColor("#0b3d91"))
-SUB = style("SUB", fontSize=12, leading=16, textColor=colors.HexColor("#57606a"))
+TITLE = style("TITLE", fontName=SANS, fontSize=21, leading=26, textColor=colors.HexColor("#0b3d91"))
+SUB = style("SUB", fontSize=12.5, leading=16, textColor=colors.HexColor("#57606a"))
 
 story = []
 def P(t, s=BODY): story.append(Paragraph(t, s))
-def B(t): story.append(Paragraph("• " + t, BULLET))
+def B(t): story.append(Paragraph("&bull;&nbsp; " + t, BULLET))
 def sp(h=6): story.append(Spacer(1, h))
 def fig(name, w_cm=15.5):
     p = FIG / name
@@ -43,7 +38,8 @@ def cap(t): story.append(Paragraph(t, SMALL)); sp(8)
 def tbl(data, widths):
     t = Table(data, colWidths=[w*cm for w in widths])
     t.setStyle(TableStyle([
-        ("FONTNAME", (0,0), (-1,-1), F), ("FONTSIZE", (0,0), (-1,-1), 9),
+        ("FONTNAME", (0,0), (-1,-1), SERIF), ("FONTSIZE", (0,0), (-1,-1), 9),
+        ("FONTNAME", (0,0), (-1,0), SANS),
         ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0b3d91")),
         ("TEXTCOLOR", (0,0), (-1,0), colors.white),
         ("GRID", (0,0), (-1,-1), 0.4, colors.HexColor("#c9d1d9")),
@@ -52,123 +48,123 @@ def tbl(data, widths):
     story.append(t); sp(8)
 
 # ---------------- Title ----------------
-P('''动态任务迁移图驱动的<br/>Auto-Research 探索系统''', TITLE); sp(4)
-P('''试点结果与全量展望 · Pilot Findings &amp; Outlook''', SUB); sp(2)
-P('''脑医学影像域 · 886 篇子样 · 2026-06-01 · github.com/vveii14/Auto-Research''', SMALL)
+P("A Living Task-Transfer Graph<br/>for Compounding Auto-Research", TITLE); sp(4)
+P("Pilot Findings and Full-Scale Outlook", SUB); sp(2)
+P("Brain medical-imaging domain &middot; 886-paper subsample &middot; 2026-06-01 &middot; github.com/vveii14/Auto-Research", SMALL)
 sp(10); fig("../../figure1_overview.png", 16)
-cap('''图 0. 系统总览:语料 → LLM 抽取(任务/方法节点 + 有向迁移边）→ 导航（富节点投影 + 结构空洞）→ 探索回流（图生长）→ 治理;底部为「历史回放」评测。''')
+cap("Figure 0. System overview: corpus -&gt; LLM extraction (task/method nodes + directed transfer edges) -&gt; navigation (rich-node projection + structural holes) -&gt; explore-and-fold-back (graph grows) -&gt; governance. Bottom: the history-as-label temporal-replay evaluation.")
 story.append(PageBreak())
 
-# ---------------- 1 执行摘要 ----------------
-P('''1. 执行摘要''', H1)
-P('''本系统把「自动科研方向发现」建模为<b>时序图上的候选迁移边预测</b>:从带时间戳的论文中抽取任务/方法节点与<b>有向、有符号的「A 是否帮助 B」迁移边</b>,构成一张随探索生长、并反过来导航探索的活体图;再用「历史当标签」的时序回放检验它是否越用越准。本报告给出在脑医学影像 886 篇子样上的端到端试点结果。''', BODY)
-sp(2); P('''核心结论(诚实标注):''', H2)
-B('''<b>已显著</b>:图结构导航预测未来研究方向,<b>显著优于「无图直接问 LLM」、共现图、随机</b>(配对检验 CI 不含 0)。这同时证明收益来自图结构、而非 LLM 记忆泄漏。''')
-B('''<b>尚未显著</b>:核心卖点「复利」(growing &gt; frozen)方向一致为正、但在 900 篇规模下 CI 仍跨 0,需扩量定论。''')
-B('''<b>真实弱点</b>:当前 method→task 边里 78% 是「纯使用」而非「真迁移」;全图真迁移边仅约 23%。已定位主因为抽取 prompt,可修。''')
-B('''<b>判断</b>:idea 的基础设施与「图 &gt; 基线」已坐实(可作安全网论文);「复利」待一次有止损线的扩量赌定。''')
+# ---------------- 1 ----------------
+P("1. Executive Summary", H1)
+P("We cast automatic research-direction discovery as <b>candidate transfer-edge prediction on a temporal graph</b>. From timestamped papers we extract task and method nodes together with <b>directed, signed &ldquo;does A help B&rdquo; transfer edges</b>, forming a graph that grows as exploration proceeds and, in turn, navigates it; a <b>history-as-label</b> temporal replay tests whether it becomes more accurate over time. This report presents an end-to-end pilot on 886 brain medical-imaging abstracts.")
+sp(2); P("Key findings (stated honestly):", H2)
+B("<b>Significant.</b> Graph-structured navigation predicts future research directions <b>significantly better than a no-graph LLM, a co-occurrence graph, and random</b> (paired bootstrap CI excludes 0). This also shows the gain comes from graph structure, not from the LLM memorizing future papers.")
+B("<b>Not yet significant.</b> The headline <b>compounding</b> effect (growing &gt; frozen) is consistently positive in the point estimate, but its CI still spans 0 at the 900-paper scale.")
+B("<b>Real weakness.</b> 78% of method-&gt;task edges are mere <i>usage</i> rather than genuine <i>transfer</i>; only ~23% of all edges are genuine transfer. The main cause is the extraction prompt (fixable).")
+B("<b>Verdict.</b> The infrastructure and the &ldquo;graph &gt; baselines&rdquo; result are established (a safety-net contribution); the compounding claim warrants one scale-up with a clear stop-loss.")
 story.append(PageBreak())
 
-# ---------------- 2 idea & workflow ----------------
-P('''2. 核心 idea 与工作流''', H1)
-P('''<b>定位</b>:第一个把研究关系图从「静态只读底座」变成「<b>随探索动态生长、并反过来导航探索</b>」的活体结构。对手 Intern-Atlas(静态只读)、Deep Ideation(底图固定)、AC/DC(无关系图)。novelty 在于<b>有向迁移语义 + 活体生长 + 图导航 + 复利</b>,对 method→task 与 task→task 两类边平权。''', BODY)
-P('''工作流(8 步):''', H2)
-for t in ['''定语料范围(可调参数:会议/期刊/年份/规模)''',
-          '''无差别读入带时间戳论文''',
-          '''LLM 抽取:任务/方法节点 + 有向迁移边(含逐字证据)''',
-          '''传递推断:A→B、B→C ⇒ A→C,补稀疏区''',
-          '''导航(非随机,核心):富节点投影 + 结构空洞 + 拓扑打分,LLM 仅笼中过滤,输出 top-k 方向''',
-          '''探索 + 回流:方向交自动研究,成功/失败均回流为 verified 边,图生长''',
-          '''治理:去重 / 冲突消解 / 衰减,防变脏''',
-          '''持续接收新论文,图随领域生长''']:
+# ---------------- 2 ----------------
+P("2. Core Idea and Workflow", H1)
+P("<b>Positioning.</b> The first system to turn a research-relation graph from a <i>static, read-only substrate</i> into a structure that <b>grows with exploration and navigates it</b>. Closest prior work: Intern-Atlas (static, read-only), Deep Ideation (fixed substrate), AC/DC (no relational graph). The novelty is the <b>combination of directed transfer semantics + living growth + graph navigation + compounding</b>, applied equally to method-&gt;task and task-&gt;task edges.")
+P("Workflow (8 stages):", H2)
+for t in ["Define corpus scope (a tunable parameter: venues / years / sample size).",
+          "Ingest timestamped papers indiscriminately.",
+          "LLM extraction: task/method nodes + directed transfer edges, each with a verbatim evidence span.",
+          "Transitive inference: A-&gt;B and B-&gt;C imply A-&gt;C, filling sparse regions.",
+          "Navigation (non-random, the core): rich-node projection + structural holes + topological scoring; the LLM only performs caged local filtering, yielding top-k directions.",
+          "Explore and fold back: a direction is sent to auto-research; success and failure alike return as verified edges, so the graph grows.",
+          "Governance: deduplication / conflict resolution / decay, to prevent the graph from degrading.",
+          "Continuous ingestion of new papers, so the graph grows with the field."]:
     B(t)
-P('''评测(独立注入真值):用 ≤T 年的图预测 T+1 真实出现的迁移边,先打分再回灌,逐年滚动;比较 growing / frozen / 共现图 / 无图 LLM / 随机。<b>历史发表即免费、客观的标签</b>,从而避免循环论证。''', BODY)
+P("<b>Evaluation.</b> Build the graph up to year T, predict the transfer edges that actually emerge in T+1, score first and only then ingest T+1, and roll forward year by year; compare growing / frozen / co-occurrence / no-graph-LLM / random. Real publication history provides <b>free, objective labels</b>, which avoids circular reasoning.")
 story.append(PageBreak())
 
-# ---------------- 3 试点设置 + 语料 ----------------
-P('''3. 试点设置与语料''', H1)
-P('''来源 Semantic Scholar(仅摘要);过滤 fieldsOfStudy=Computer Science + 脑影像/方法关键词;年份 2015–2024;全量已下 8,000 篇,试点用其中 886 篇子样(≤2020 取 500 篇建图,2021–24 各 100 篇作预测目标/回灌)。抽取用 Azure 托管 Opus,embedding 用 all-MiniLM-L6-v2。''', BODY)
+# ---------------- 3 ----------------
+P("3. Pilot Setup and Corpus", H1)
+P("Source: Semantic Scholar (abstracts only); filtered to fieldsOfStudy = Computer Science plus brain-imaging / method terms; years 2015-2024. 8,000 papers were fetched; the pilot uses an 886-paper subsample (500 from &le;2020 to build the graph, and 100 per year for 2021-2024 as prediction targets / ingestion material). Extraction uses an Azure-hosted Opus model; node embeddings use all-MiniLM-L6-v2.")
 fig("f1_years.png", 14)
-cap('''图 1. 语料年份分布,2015→2024 稳定增长,适合时序留出;红线为 T0=2020 的建图/预测分界。''')
+cap("Figure 1. Corpus year distribution. The steady 2015-2024 growth suits temporal hold-out; the red line marks the T0=2020 build/predict split.")
 story.append(PageBreak())
 
-# ---------------- 4 图 ----------------
-P('''4. 构建出的迁移图''', H1)
-P('''886 篇 → 实体消解后 <b>2,907 节点(任务 1,064 / 方法 1,843)、1,748 条抽取边</b>,传递推断再补约 518 条。边以 method→task 为主(1,581),task→task 131,method→method 36。''', BODY)
+# ---------------- 4 ----------------
+P("4. The Constructed Transfer Graph", H1)
+P("886 papers yield, after entity resolution, <b>2,907 nodes (1,064 task / 1,843 method) and 1,748 extracted edges</b>; transitive inference adds about 518 more. Edges are dominated by method-&gt;task (1,581); task-&gt;task accounts for 131 and method-&gt;method for 36.")
 fig("f2_graph.png", 15)
-cap('''图 2. 图构成:节点类型(左)与边类型(右,叠加显示抽取 vs 传递推断)。''')
-P('''真实 task→task 迁移边样例(who-helps-whom):''', H2)
-tbl([['''源任务 → 目标任务''', '''证据(节选)'''],
-     ['''年龄预测(结构 MRI) → 阿尔茨海默诊断''', '''sensitive to deviance from normal aging...'''],
-     ['''海马分割 → 阿尔茨海默分类''', '''multi-task CNN jointly learning hippocampus...'''],
-     ['''虚拟连接组推断 → AD 分类''', '''trained on virtual connectomes can be used...'''],
-     ['''PET 分割 ⇄ 去噪 ⇄ 部分容积校正''', '''segmentation can help in denoising and PVC...''']],
-    [7.5, 8])
+cap("Figure 2. Graph composition: node types (left) and edge types (right, stacked to show extracted vs. transitively inferred).")
+P("Representative genuine task-&gt;task transfer edges (who-helps-whom):", H2)
+tbl([["Source task -&gt; Target task", "Evidence (excerpt)"],
+     ["age prediction (structural MRI) -&gt; Alzheimer's diagnosis", "sensitive to deviance from normal aging..."],
+     ["hippocampus segmentation -&gt; Alzheimer's classification", "multi-task CNN jointly learning hippocampus..."],
+     ["virtual connectome inference -&gt; AD classification", "trained on virtual connectomes can be used..."],
+     ["PET segmentation <-> denoising <-> partial-volume corr.", "segmentation can help in denoising and PVC..."]],
+    [7.6, 7.9])
 story.append(PageBreak())
 
-# ---------------- 5 结果 ----------------
-P('''5. 试点结果''', H1)
-P('''5.1 导航准确率(语义匹配,bootstrap 95% CI)''', H2)
-P('''同一时序预测任务上,我方(growing/frozen)在各 k 下稳定优于共现图、无图 LLM 与随机。无图 LLM 几乎与随机持平——说明仅靠 LLM(含其记忆的未来)很弱,提升来自图。''', BODY)
+# ---------------- 5 ----------------
+P("5. Pilot Results", H1)
+P("5.1 Navigation accuracy (semantic matching, bootstrap 95% CI)", H2)
+P("On the same temporal-forecast task, our arms (growing / frozen) consistently outperform the co-occurrence graph, the no-graph LLM, and random across all k. The no-graph LLM is near-random, indicating that the LLM alone (with its memorized future) is weak and that the gain comes from the graph.")
 fig("f3_precision.png", 15)
-cap('''图 3. 各臂 semantic precision@k 与 95% 置信区间(4 个 T0 × 年份汇总)。''')
-tbl([['''臂''', '''P@10''', '''P@20''', '''P@50'''],
-     ['''growing''', "0.127", "0.093", "0.079"],
-     ['''frozen''', "0.091", "0.075", "0.056"],
-     ['''cooccur(共现)''', "0.027", "0.057", "0.047"],
-     ['''no-graph LLM''', "0.023", "0.016", "0.013"],
-     ['''random''', "0.000", "0.000", "0.001"]], [5, 3.5, 3.5, 3.5])
+cap("Figure 3. Semantic precision@k by arm with 95% confidence intervals (pooled over 4 T0 settings x years).")
+tbl([["Arm", "P@10", "P@20", "P@50"],
+     ["growing", "0.127", "0.093", "0.079"],
+     ["frozen", "0.091", "0.075", "0.056"],
+     ["co-occurrence", "0.027", "0.057", "0.047"],
+     ["no-graph LLM", "0.023", "0.016", "0.013"],
+     ["random", "0.000", "0.000", "0.001"]], [5, 3.5, 3.5, 3.5])
 
-P('''5.2 复利探针:growing vs frozen''', H2)
-P('''沿起始年 T0 扫描:底盘小、增长占比大时(T0=2017、2019)growing 明显高于 frozen;底盘大、年增量小时(T0=2020)趋于打平——符合「增量需相对底盘足够大才显现复利」的预期,也正是 900 篇子样在晚期 T0 的人为局限。''', BODY)
+P("5.2 Compounding probe: growing vs. frozen", H2)
+P("Sweeping the start year T0: when the base is small and growth is proportionally large (T0=2017, 2019), growing clearly exceeds frozen; when the base is large and yearly increments are tiny (T0=2020), they converge. This is consistent with &ldquo;growth must be large relative to the base for compounding to surface,&rdquo; and reflects a limitation of the small subsample at late T0.")
 fig("f4_t0sweep.png", 14)
-cap('''图 4. growing(图逐年生长)与 frozen(图固定于 T0)随 T0 的对比。''')
+cap("Figure 4. growing (graph grows each year) vs. frozen (graph fixed at T0) across start years T0.")
 
-P('''5.3 决定性配对检验''', H2)
-P('''growing − 无图 LLM 在所有 k 下 CI 全部 &gt; 0(<b>显著</b>);growing − frozen 均值恒为正但 CI 仍跨 0(<b>尚不显著</b>)。''', BODY)
+P("5.3 Decisive paired tests", H2)
+P("growing - (no-graph LLM) has a CI above 0 at every k (<b>significant</b>); growing - frozen has a consistently positive mean but a CI that still spans 0 (<b>not yet significant</b>).")
 fig("f5_paired.png", 14.5)
-cap('''图 5. 配对差值与 95% CI;绿色 = CI 不含 0(显著)。''')
+cap("Figure 5. Paired mean differences with 95% CIs; green = CI excludes 0 (significant).")
 
-P('''5.4 边质量审计:真迁移 vs 纯使用''', H2)
-P('''按「真迁移(预训练/表征复用/multi-task/涨点)vs 纯使用(仅把方法用于任务)」分类:method→task 仅 20% 是真迁移、78% 是纯使用;task→task 反而 65% 是真迁移。估算全图真迁移边仅约 23%。''', BODY)
+P("5.4 Edge-quality audit: transfer vs. usage", H2)
+P("Classifying edges as genuine <i>transfer</i> (pretraining / representation reuse / multi-task / measured gain) vs. mere <i>usage</i> (a method simply applied to a task): only 20% of method-&gt;task edges are genuine transfer (78% usage), whereas 65% of task-&gt;task edges are transfer. Genuine-transfer edges are estimated at only ~23% of the graph.")
 fig("f6_quality.png", 13)
-cap('''图 6. 边质量审计(每类 40 条抽样)。当前图大半是「方法-任务使用表」,真迁移是少数。''')
+cap("Figure 6. Edge-quality audit (40 sampled edges per type). The current graph is largely a method-task usage table; genuine transfer is the minority.")
 
-P('''5.5 抽取 prompt 是关键杠杆''', H2)
-P('''全文 vs 摘要 A/B 显示:把 task→task 做厚的<b>主杠杆是抽取 prompt,而非读全文</b>。同样的摘要,改用强化迁移 prompt,task→task 占比即从 8% 升到 32%;全文反而稀释比例(加入更多 method→task)。''', BODY)
+P("5.5 The extraction prompt is the key lever", H2)
+P("A full-text vs. abstract A/B test shows that the main lever for thickening task-&gt;task is the <b>extraction prompt, not reading full text</b>. On the same abstracts, a transfer-targeted prompt raises the task-&gt;task share from 8% to 32%; adding full text dilutes the proportion (it contributes still more method-&gt;task edges).")
 fig("f7_prompt.png", 13)
-cap('''图 7. task→task 边占比:通用 prompt vs 强化迁移 prompt vs +全文。''')
+cap("Figure 7. task-&gt;task edge share: generic prompt vs. transfer-targeted prompt vs. + full text.")
 story.append(PageBreak())
 
-# ---------------- 6 结论 ----------------
-P('''6. 已证明 / 待解决''', H1)
-P('''已证明(显著):''', H2)
-B('''图结构导航 &gt; 无图 LLM、&gt; 共现图、&gt;&gt; 随机(配对 CI 不含 0)。''')
-B('''收益来自图,而非 LLM 记忆泄漏(无图 LLM 接近随机)。''')
-P('''待解决:''', H2)
-B('''复利(growing &gt; frozen)方向一致但未显著——需扩量(更多年份/数据点收紧 CI)。''')
-B('''边质量:真迁移仅约 23%,需「区分迁移/使用」的重抽提纯。''')
-B('''规模与噪声:900 篇子样、仅摘要、单 embedding,数字偏小且抖。''')
+# ---------------- 6 ----------------
+P("6. Established / Open", H1)
+P("Established (significant):", H2)
+B("Graph-structured navigation &gt; no-graph LLM, &gt; co-occurrence graph, &gt;&gt; random (paired CIs exclude 0).")
+B("The gain is attributable to the graph, not to LLM leakage (the no-graph LLM is near-random).")
+P("Open:", H2)
+B("Compounding (growing &gt; frozen) is directionally positive but not significant -- needs scale-up (more years / data points to tighten the CI).")
+B("Edge quality: genuine transfer is only ~23% -- needs a transfer-vs-usage re-extraction.")
+B("Scale and noise: 900-paper subsample, abstracts only, a single embedding model; values are small and noisy.")
 
-# ---------------- 7 展望 ----------------
-P('''7. 全量展望与路线''', H1)
-P('''最关键三步(其余为工程放大):''', H2)
-B('''<b>提纯重抽</b>:用「区分真迁移 vs 纯使用、两类源平权」的 prompt 重抽,先低成本验证图质量与「图 &gt; 基线」在提纯后是否依然成立。''')
-B('''<b>扩量定复利</b>:扩到约 3,000 篇并加多起始年 T0,把 growing − frozen 的 CI 推离 0;读全文进一步加厚真迁移。''')
-B('''<b>完全体</b>:本地 72B 抽取(可复现、防泄漏)+ Neo4j/向量索引 + 治理常开 + 多域(脑→视网膜→心脏)+ 接真实 auto-research 闭环 demo。''')
-P('''止损线:扩量后复利仍不显著,则收敛为「结构导航 &gt; 无图 LLM/共现/随机」的弱化版论文(已显著)。''', BODY)
+# ---------------- 7 ----------------
+P("7. Full-Scale Outlook and Roadmap", H1)
+P("Three highest-leverage steps (the rest is engineering scale-up):", H2)
+B("<b>Purifying re-extraction.</b> A prompt that distinguishes genuine transfer from usage (treating both source types equally); cheaply re-verify graph quality and whether &ldquo;graph &gt; baselines&rdquo; survives purification.")
+B("<b>Scale to resolve compounding.</b> ~3,000 papers plus more start years T0 to push the growing - frozen CI off zero; add full text to further thicken genuine transfer.")
+B("<b>Full system.</b> Local 72B extraction (reproducible, leakage-controlled) + Neo4j / vector index + governance always on + multiple domains (brain -&gt; retina -&gt; cardiac) + a live auto-research closed-loop demo.")
+P("<b>Stop-loss.</b> If compounding remains non-significant after scale-up, fall back to the (already significant) &ldquo;structure-driven navigation &gt; no-graph LLM / co-occurrence / random&rdquo; paper.")
 sp(6)
-P('''附:实现进度''', H2)
-tbl([['''阶段''', '''内容''', '''状态'''],
-     ["P0", '''取数 + 图骨架''', '''完成(8000 篇)'''],
-     ["P1", '''抽取验证''', '''完成'''],
-     ["P2", '''建图 + 消解 + 推断''', '''完成(886 篇)'''],
-     ["P3", '''图导航''', '''完成'''],
-     ["P4–P6", '''时序评测 + 置信区间''', '''完成'''],
-     ["P7–P8", '''全文 A/B + 边质量审计''', '''完成'''],
-     ["—", '''提纯重抽 / 扩量 / 完全体''', '''待进行''']], [2.5, 8.5, 4.5])
+P("Implementation progress", H2)
+tbl([["Stage", "Content", "Status"],
+     ["P0", "Data acquisition + graph scaffold", "done (8,000 papers)"],
+     ["P1", "Extraction validation", "done"],
+     ["P2", "Graph build + resolution + inference", "done (886 papers)"],
+     ["P3", "Graph navigation", "done"],
+     ["P4-P6", "Temporal evaluation + confidence intervals", "done"],
+     ["P7-P8", "Full-text A/B + edge-quality audit", "done"],
+     ["--", "Purifying re-extraction / scale-up / full system", "to do"]], [2.4, 9.1, 4])
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, topMargin=1.8*cm, bottomMargin=1.8*cm,
                         leftMargin=2*cm, rightMargin=2*cm, title="Pilot Findings and Outlook")
 doc.build(story)
-import os; print("PDF written:", OUT, "|", os.path.getsize(OUT), "bytes")
+print("PDF written:", OUT, "|", os.path.getsize(OUT), "bytes")
